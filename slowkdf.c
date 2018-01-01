@@ -1,6 +1,28 @@
 /*
+ * AEAD File Toolkit --- an utility providing symmetric and deniable
+ * authenticated encryption with associated data for files and folders
+ * Copyright (C) 2019 Konstantin Ignatiev
+ *
+ * This file is part of AEAD File Toolkit.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
+/*
  *  Multiple calls to slow KDF must have key dependence
- *  on salt not weeker than dependence on key.
+ *  on salt not weeker than a dependence on key.
  *
  *                          [salt derivation]
  *                              |
@@ -32,9 +54,12 @@
  *
  */
 
+#include <stdlib.h>
 #include <argon2.h>
-#include "csprng_pk_source.h"
+#include <lapacke_utils.h>
+#include "utils.h"
 #include "crypto_settings.h"
+#include "csprng_pk_source.h"
 
 
 int
@@ -43,35 +68,53 @@ slowkdf_loop_argon2id (const int itertimes_def,
                        const size_t *hidivlen,
                        uint8_t **visiv,
                        const int loopcount,
-                       const size_t visivlen)
+                       const int memcost_def,
+                       const int parallelismlevel_def,
+                       size_t * const visivlen,
+                       void *hash, const size_t hashlen,
+                       void *iv, const size_t ivlen)
 {
-  uint32_t i;
-  uint32_t hidivlen,
-           itertimes, memcost;
-  double fluctuation;
+  uint32_t i,
+           itertimes,
+           memcost, parallelismlevel;
+  size_t hidiv_digest_len,
+         hidiv_digest_len_prev,
+         pk_digest_len,
+         pk_digest_len_prev;
+  double minmax_fluctuation,
+         max_fluctuation;
+  void *hidiv_digest,
+       *hidiv_digest_prev,
+       *pk_digest,
+       *pk_digest_prev;
 
-  visiv = malloc(loopcount * sizeof(uint8_t*));
-  hidiv_di_gest_len = MAX(loopcount, AES256_MAXIVSIZE);
+  visiv = malloc (loopcount * sizeof (uint8_t *));
+  hidiv_digest_len = MAX (loopcount, AES256_MAXIVSIZE);
+  hidiv_digest = malloc (hidiv_digest_len * sizeof (uint8_t *));
   argon2id_hash_raw (ITER_TIMES, MEM_COST, PARALLELISM_LEVEL,
-                                  hidiv, AES256_MAXIVSIZE,
-                                  vissalt[0], AES256_MAXIVSIZE,
-                                  hidiv_digest, hidiv_digest_len);
+                     hidiv, AES256_MAXIVSIZE,
+                     visiv[0], AES256_MAXIVSIZE,
+                     hidiv_digest, hidiv_digest_len);
   for (i = 0; i<loopcount-1; i++)
   {
     /* It is wise to make random values for algorithm
      * parameters depend on first KDF digest for hidden part of IV */
-    fluctuation = 1.5 - iv_digest[i]/255;
-    visivlen[i] = AES256_MAXIVSIZE * fluctuation;
+    minmax_fluctuation = 1.5 - ((uint8_t *)hidiv_digest)[i]/255;
+    max_fluctuation = (1.0 + ((uint8_t *)hidiv_digest)[i]/255);
+    visivlen[i] = AES256_MAXIVSIZE * minmax_fluctuation;
+    pk_digest_len_prev = pk_digest_len;
+    pk_digest_len = AES256_MAXPKSIZE * max_fluctuation;
     hidiv_digest_len_prev = hidiv_digest_len;
-    hidiv_digest_len = AES256_MAXIVSIZE * (1+iv_digest[i]/255);
+    hidiv_digest_len = AES256_MAXIVSIZE * max_fluctuation;
     visiv[i] = malloc(visivlen[i]*sizeof(uint8_t));
+    /* TODO: do not forget to implement exception handling in GNU recommended manner */
     if (!csprng_key(visiv[i]))
       return -1;
-    itertimes = itertimes_def * fluctuation;
-    memcost = memcost_def * fluctuation;
-    parallelismlevel = parallelismlevel_def * fluctuation;
-    memcpy(pk_digest_prev, pk_digest);
-    memcpy(hidiv_digest_prev, hidiv_digest);
+    itertimes = itertimes_def * minmax_fluctuation;
+    memcost = MAX (memcost_def, MEM_COST) * minmax_fluctuation;
+    parallelismlevel = MAX (parallelismlevel_def, PARALLELISM_LEVEL) * minmax_fluctuation;
+    memcpy (pk_digest_prev, pk_digest);
+    memcpy (hidiv_digest_prev, hidiv_digest);
 
     /* Evaluation of intermediate digest for the PK
      * where previously computed intermediate

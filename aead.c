@@ -1,5 +1,5 @@
 /*
- * aead.c --- an utility providing symmetric and deniable
+ * AEAD File Toolkit --- an utility providing symmetric and deniable
  * authenticated encryption with associated data for files and folders
  * Copyright (C) 2019 Konstantin Ignatiev
  *
