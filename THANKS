@@ -1,0 +1,28 @@
+AEAD File Toolkit THANKS -- Acknowledgements.
+Copyright (C) 2019 Konstantin Ignatiev
+See the end for copying conditions.
+
+John <john@nachtimwald.com> for providing an example of C code
+	implementation of hexadecimal encoding and decoding.
+
+"ryyst" (https://stackoverflow.com/users/282635/ryyst) for providing
+	an example of C code implementation Base64 encoding and decoding.
+
+Also my sincere acknowledgements to following contributors of OpenSSL
+for providing examples on OpenSSL wiki for AEAD:
+
+"Jwalton"
+Matt Caswell
+"Mspncp"
+"Nabond"
+"Nkarstens"
+"Philippe lhardy"
+
+AEAD File Toolkit uses Argon2 by Daniel Dinu, Dmitry Khovratovich,
+Jean-Philippe Aumasson, and Samuel Neves; libgcrypt by Werner Koch;
+libopenssl by The OpenSSL Project Authors.
+
+----------------------------------------------------------------------
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
