@@ -1,5 +1,3 @@
-# AEAD File Toolkit - an utility providing symmetric and deniable
-# authenticated encryption with associated data for files and folders
 # Copyright (C) 2019 Konstantin Ignatiev
 #
 # This program is free software; you can redistribute it and/or modify
